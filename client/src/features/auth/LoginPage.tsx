@@ -1,0 +1,155 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../app/AuthContext';
+import { loginSchema, type LoginInput } from '../../lib/schemas';
+import { Eye, EyeOff, Star, Loader2 } from 'lucide-react';
+
+export default function LoginPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [showPassword, setShowPassword] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  const isExpired = searchParams.get('expired') === '1';
+  const isSignedUp = searchParams.get('registered') === '1';
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginInput) => {
+    setServerError('');
+    try {
+      const user = await login(data.email, data.password);
+      const redirectMap = { ADMIN: '/admin', USER: '/stores', OWNER: '/owner' };
+      navigate(redirectMap[user.role], { replace: true });
+    } catch (err: any) {
+      setServerError(err.message || 'Login failed. Please try again.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Brand panel */}
+      <div className="hidden lg:flex lg:w-[420px] bg-zinc-900 items-center justify-center p-10">
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+              <Star className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-semibold text-white tracking-tight">StoreRating</span>
+          </div>
+          <p className="text-zinc-400 text-[15px] leading-relaxed max-w-[280px]">
+            A unified platform for managing store ratings, users, and business insights.
+          </p>
+        </div>
+      </div>
+
+      {/* Form panel */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-[380px]">
+          <div className="flex items-center gap-2.5 mb-8 lg:hidden">
+            <Star className="w-5 h-5 text-accent" />
+            <span className="font-semibold text-[15px] text-zinc-900">StoreRating</span>
+          </div>
+
+          <h1 className="text-xl font-semibold text-zinc-900 mb-1">Sign in to your account</h1>
+          <p className="text-[13px] text-zinc-500 mb-6">
+            Enter your credentials to continue
+          </p>
+
+          {isExpired && (
+            <div className="mb-4 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-md text-[13px] text-amber-800">
+              Your session has expired. Please sign in again.
+            </div>
+          )}
+
+          {isSignedUp && (
+            <div className="mb-4 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-md text-[13px] text-emerald-800">
+              Account created successfully. Sign in to continue.
+            </div>
+          )}
+
+          {serverError && (
+            <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-md text-[13px] text-red-700">
+              {serverError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-[13px] font-medium text-zinc-700 mb-1.5">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                {...register('email')}
+                className={`w-full h-9 px-3 text-[13px] rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent ${
+                  errors.email ? 'border-red-300' : 'border-zinc-300 hover:border-zinc-400'
+                }`}
+                placeholder="you@example.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-[12px] text-red-600">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-[13px] font-medium text-zinc-700 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  {...register('password')}
+                  className={`w-full h-9 px-3 pr-9 text-[13px] rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent ${
+                    errors.password ? 'border-red-300' : 'border-zinc-300 hover:border-zinc-400'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1 text-[12px] text-red-600">{errors.password.message}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-9 bg-accent hover:bg-accent-hover text-white text-[13px] font-medium rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Sign in
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-[13px] text-zinc-500">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-accent hover:text-accent-hover font-medium">
+              Create one
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
